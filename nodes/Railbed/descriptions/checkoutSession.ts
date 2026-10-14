@@ -1,5 +1,6 @@
 import type { INodeProperties } from 'n8n-workflow';
 import { CURRENCIES } from '../../shared/constants';
+import { recordLocator } from './locators';
 
 const show = (operation: string[]) => ({ show: { resource: ['checkoutSession'], operation } });
 
@@ -14,20 +15,20 @@ export const checkoutSessionOperations: INodeProperties[] = [
 			{
 				name: 'Create',
 				value: 'create',
-				description: 'Create a checkout session and get the link to send the buyer',
+				description: 'Create a new checkout session and get the link to send the buyer',
 				action: 'Create checkout session',
 			},
 			{
 				name: 'Get',
 				value: 'get',
-				description: 'Get a checkout session by ID',
+				description: 'Retrieve a checkout session with its link and status',
 				action: 'Get checkout session',
 			},
 			{
 				name: 'Start',
 				value: 'start',
 				description:
-					'Start a session and get its card providers, for a checkout page you build yourself',
+					'Start a checkout session and get its card providers, for a checkout page you build yourself',
 				action: 'Start checkout session',
 			},
 		],
@@ -79,7 +80,7 @@ export const checkoutSessionFields: INodeProperties[] = [
 				name: 'collect',
 				type: 'json',
 				default: '',
-				placeholder: '{"name": "required", "shipping_address": "required"}',
+				placeholder: 'e.g. {"name": "required", "shipping_address": "required"}',
 				description:
 					'What the checkout page asks the buyer for besides their email, as the API’s collect object: name, phone, date_of_birth, shipping_address and billing_address (each off, optional or required), minimum_age, marketing_opt_in and up to 5 custom_fields. See railbed.com/docs/api/checkout-sessions.',
 			},
@@ -122,6 +123,7 @@ export const checkoutSessionFields: INodeProperties[] = [
 				name: 'customerName',
 				type: 'string',
 				default: '',
+				placeholder: 'e.g. Nathan Smith',
 				description: 'The buyer’s name, saved on the order and the customer. Up to 120 characters.',
 			},
 			{
@@ -129,6 +131,7 @@ export const checkoutSessionFields: INodeProperties[] = [
 				name: 'customerPhone',
 				type: 'string',
 				default: '',
+				placeholder: 'e.g. +1 555 010 0199',
 				description:
 					'The buyer’s phone number, saved on the order and the customer. Up to 40 characters.',
 			},
@@ -172,6 +175,7 @@ export const checkoutSessionFields: INodeProperties[] = [
 				name: 'order',
 				type: 'json',
 				default: '',
+				placeholder: 'e.g. {"items": [{"name": "Mug", "quantity": 1, "amount": "18.00"}]}',
 				description:
 					'What is being bought and where it ships, as the API’s order object: items, discount, shipping, tax, addresses and your store’s order ID. See railbed.com/docs/api/checkout-sessions.',
 			},
@@ -189,6 +193,7 @@ export const checkoutSessionFields: INodeProperties[] = [
 				name: 'storeCustomerId',
 				type: 'string',
 				default: '',
+				placeholder: 'e.g. 5521',
 				description: 'The buyer’s customer ID in your own store or system. Up to 64 characters.',
 			},
 			{
@@ -204,16 +209,19 @@ export const checkoutSessionFields: INodeProperties[] = [
 	},
 
 	// ---------- get, start ----------
-	{
-		displayName: 'Session ID',
+	recordLocator('session', {
 		name: 'sessionId',
-		type: 'string',
-		required: true,
-		default: '',
-		placeholder: 'e.g. pay_7AAiYH0Ykt11ED4hmfiN',
-		description: 'The checkout session’s ID. A session and its payment share one ID.',
-		displayOptions: show(['get', 'start']),
-	},
+		displayName: 'Checkout Session',
+		description: 'The checkout session. It shares its ID with its payment.',
+		displayOptions: show(['get']),
+	}),
+	recordLocator('session', {
+		name: 'sessionId',
+		displayName: 'Checkout Session',
+		description:
+			'The checkout session to start; the list shows open sessions. It shares its ID with its payment.',
+		displayOptions: show(['start']),
+	}),
 	{
 		displayName: 'Additional Fields',
 		name: 'startFields',
@@ -237,7 +245,7 @@ export const checkoutSessionFields: INodeProperties[] = [
 				type: 'string',
 				default: '',
 				placeholder: 'e.g. nathan@example.com',
-				description: 'Needed when the session was created without one',
+				description: 'The buyer’s email. Needed when the session was created without one.',
 			},
 		],
 	},

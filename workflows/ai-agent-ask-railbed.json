@@ -67,7 +67,7 @@
         "returnAll": false,
         "limit": 25,
         "filters": {
-          "status": "={{ $fromAI('status', 'Only payments in this status: open, pending, paid, held, failed or expired. Empty for every status.', 'string', '') }}",
+          "status": "={{ $fromAI('status', 'Only payments in this status: open, pending (the buyer went on to pay), paid, held (money arrived but needs the owner’s decision), failed or expired. Empty for every status.', 'string', '') }}",
           "reference": "={{ $fromAI('reference', 'Only payments with exactly this reference, the store order ID the business sent. Empty for any.', 'string', '') }}",
           "createdAfter": "={{ $fromAI('created_after', 'Only payments created at or after this time, as ISO 8601 such as 2026-10-01T00:00:00Z. Empty for no limit.', 'string', '') }}",
           "createdBefore": "={{ $fromAI('created_before', 'Only payments created at or before this time, as ISO 8601. Empty for no limit.', 'string', '') }}"
@@ -94,7 +94,11 @@
         "returnAll": false,
         "limit": 25,
         "filters": {
-          "customerId": "={{ $fromAI('customer_id', 'Only orders of this customer (an ID starting cus_, from the Customers tool). Empty for any.', 'string', '') }}",
+          "customerId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "={{ $fromAI('customer_id', 'Only orders of this customer (an ID starting cus_, from the Customers tool). Empty for any.', 'string', '') }}"
+          },
           "storeId": "={{ $fromAI('store_id', 'Only orders sent with this store ID. Usually empty.', 'string', '') }}",
           "storeOrderId": "={{ $fromAI('store_order_id', 'The store’s own order number or ID, such as 1042. Empty to list recent orders.', 'string', '') }}"
         }

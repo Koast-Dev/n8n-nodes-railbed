@@ -1,5 +1,6 @@
 import type { INodeProperties } from 'n8n-workflow';
 import { EVENT_TYPES } from '../../shared/constants';
+import { recordLocator } from './locators';
 
 const show = (operation: string[]) => ({ show: { resource: ['webhookEndpoint'], operation } });
 
@@ -14,25 +15,25 @@ export const webhookEndpointOperations: INodeProperties[] = [
 			{
 				name: 'Create',
 				value: 'create',
-				description: 'Add an address that receives Railbed events, and get its signing secret',
+				description: 'Create an endpoint that receives Railbed events, and get its signing secret',
 				action: 'Create webhook endpoint',
 			},
 			{
 				name: 'Delete',
 				value: 'delete',
-				description: 'Remove a webhook endpoint so it stops receiving events',
+				description: 'Delete a webhook endpoint permanently, so it stops receiving events',
 				action: 'Delete webhook endpoint',
 			},
 			{
 				name: 'Get',
 				value: 'get',
-				description: 'Get a webhook endpoint by ID',
+				description: 'Retrieve a webhook endpoint with its address and events',
 				action: 'Get webhook endpoint',
 			},
 			{
 				name: 'Get Many',
 				value: 'getAll',
-				description: 'Get the webhook endpoints in the key’s mode',
+				description: 'Retrieve a list of the webhook endpoints in the key’s mode (Test or Live)',
 				action: 'Get many webhook endpoints',
 			},
 		],
@@ -56,7 +57,8 @@ export const webhookEndpointFields: INodeProperties[] = [
 		required: true,
 		default: '',
 		placeholder: 'e.g. https://example.com/webhooks/railbed',
-		description: 'Where Railbed sends events. Live endpoints must be public https:// addresses.',
+		description:
+			'Where Railbed sends events. Live endpoints need a public https:// address; Test ones may also use http://localhost.',
 		displayOptions: show(['create']),
 	},
 	{
@@ -82,19 +84,17 @@ export const webhookEndpointFields: INodeProperties[] = [
 				type: 'string',
 				default: '',
 				placeholder: 'e.g. Fulfilment server',
-				description: 'A label shown on the endpoint in Developers. Up to 80 characters.',
+				description:
+					'A name for the endpoint, shown in Developers in the Railbed dashboard. Up to 80 characters.',
 			},
 		],
 	},
-	{
-		displayName: 'Endpoint ID',
+	recordLocator('endpoint', {
 		name: 'endpointId',
-		type: 'string',
-		required: true,
-		default: '',
-		placeholder: 'e.g. we_N8nQ4vRx7KtZ2mLp9WcB',
+		displayName: 'Webhook Endpoint',
+		description: 'The webhook endpoint.',
 		displayOptions: show(['get', 'delete']),
-	},
+	}),
 	{
 		displayName: 'Return All',
 		name: 'returnAll',

@@ -1,4 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
+import { recordLocator } from './locators';
 
 const show = (operation: string[]) => ({ show: { resource: ['order'], operation } });
 
@@ -13,26 +14,27 @@ export const orderOperations: INodeProperties[] = [
 			{
 				name: 'Get',
 				value: 'get',
-				description: 'Get an order with its items, addresses and payment attempts',
+				description: 'Retrieve an order with its items, addresses and payment attempts',
 				action: 'Get order',
 			},
 			{
 				name: 'Get Many',
 				value: 'getAll',
-				description: 'Get many orders, newest first',
+				description:
+					'Retrieve a list of orders, newest first, for a customer or by your store’s order ID',
 				action: 'Get many orders',
 			},
 			{
 				name: 'Record Cancellation or Refund',
 				value: 'recordEvent',
 				description:
-					'Note on the order’s timeline that your store canceled it or refunded the buyer. Moves no money.',
+					'Note on an order’s timeline that your store canceled it or refunded the buyer. Moves no money.',
 				action: 'Record order cancellation or refund',
 			},
 			{
 				name: 'Update Fulfillment',
 				value: 'update',
-				description: 'Mark an order fulfilled or unfulfilled',
+				description: 'Mark an order fulfilled, not fulfilled, or as having nothing to ship',
 				action: 'Update order fulfillment',
 			},
 		],
@@ -41,17 +43,13 @@ export const orderOperations: INodeProperties[] = [
 ];
 
 export const orderFields: INodeProperties[] = [
-	{
-		displayName: 'Order ID',
+	recordLocator('order', {
 		name: 'orderId',
-		type: 'string',
-		required: true,
-		default: '',
-		placeholder: 'e.g. ord_M4tQx8ZkP1vRn6WcLs2B',
+		displayName: 'Order',
 		description:
-			'Railbed’s order ID (ord_…). Payments and webhook events carry it as order_id or orderId.',
+			'The order. In a workflow, map it from a payment’s order_id or a Railbed Trigger event’s data.order.id.',
 		displayOptions: show(['get', 'update', 'recordEvent']),
-	},
+	}),
 
 	// ---------- update ----------
 	{
@@ -63,11 +61,16 @@ export const orderFields: INodeProperties[] = [
 		options: [
 			{ name: 'Fulfilled', value: 'fulfilled', description: 'You sent or delivered it' },
 			{
-				name: 'None',
+				name: 'No Shipping',
 				value: 'none',
-				description: 'Nothing to fulfil, such as a service or donation',
+				description: 'Nothing to send, such as a download, a service or a donation',
 			},
-			{ name: 'Unfulfilled', value: 'unfulfilled', description: 'Still to send or deliver' },
+			{
+				name: 'Not Fulfilled',
+				value: 'unfulfilled',
+				description:
+					'Still to send or deliver. Paid orders like this wait under Not fulfilled in Orders.',
+			},
 		],
 		displayOptions: show(['update']),
 	},
@@ -106,7 +109,8 @@ export const orderFields: INodeProperties[] = [
 		type: 'string',
 		default: '',
 		placeholder: 'e.g. 12.00',
-		description: 'Optional. Decimal text in the order’s currency, up to the order total.',
+		description:
+			'Optional. How much you refunded, as decimal text in the order’s currency, up to the order total.',
 		displayOptions: {
 			show: { resource: ['order'], operation: ['recordEvent'], eventType: ['refunded'] },
 		},
@@ -138,28 +142,28 @@ export const orderFields: INodeProperties[] = [
 		default: {},
 		displayOptions: show(['getAll']),
 		options: [
-			{
-				displayName: 'Customer ID',
+			recordLocator('customer', {
 				name: 'customerId',
-				type: 'string',
-				default: '',
-				placeholder: 'e.g. cus_Hc7nQ2wVz9KpT4mRb1Ye',
-				description: 'Only this customer’s orders',
-			},
+				displayName: 'Customer',
+				description: 'Only this customer’s orders.',
+				required: false,
+			}),
 			{
 				displayName: 'Store ID',
 				name: 'storeId',
 				type: 'string',
 				default: '',
-				description: 'Only orders sent with this store ID',
+				placeholder: 'e.g. my-store',
+				description: 'Only orders your store or system sent with this store ID',
 			},
 			{
 				displayName: 'Store Order ID',
 				name: 'storeOrderId',
 				type: 'string',
 				default: '',
+				placeholder: 'e.g. 1042',
 				description:
-					'Find the order your store or system sent with this order ID. Add Store ID when you sent one.',
+					'Find the order your store or system sent with this order ID when it created the checkout session. Add Store ID when you sent one.',
 			},
 		],
 	},

@@ -1,15 +1,37 @@
 import type { INodeProperties } from 'n8n-workflow';
 import { PAYMENT_STATUSES } from '../../shared/constants';
+import { recordLocator } from './locators';
 
 const show = (operation: string[]) => ({ show: { resource: ['payment'], operation } });
 
-const STATUS_NAMES: Record<string, string> = {
-	open: 'Open',
-	pending: 'Pending',
-	paid: 'Paid',
-	held: 'Held',
-	failed: 'Failed',
-	expired: 'Expired',
+/** Each status in the dashboard's words (Payments' filters), with what it means for a workflow. */
+const STATUS_OPTIONS: Record<
+	(typeof PAYMENT_STATUSES)[number],
+	{ name: string; description: string }
+> = {
+	open: { name: 'Open', description: 'Waiting for the buyer to go on and pay' },
+	pending: {
+		name: 'In Progress',
+		description: 'The buyer went on to pay, and the money hasn’t arrived yet',
+	},
+	paid: {
+		name: 'Paid',
+		description: 'The money arrived and passed every check. Fulfil orders only on these.',
+	},
+	held: {
+		name: 'Needs Your Decision',
+		description:
+			'Money arrived but didn’t pass a check, so it isn’t paid until you decide in the dashboard',
+	},
+	failed: {
+		name: 'Failed',
+		description:
+			'Ended without being paid (the dashboard shows Declined). Today only Test mode’s Simulate (Failed) does this.',
+	},
+	expired: {
+		name: 'Expired',
+		description: 'Nobody paid in time, or you canceled the payment link',
+	},
 };
 
 export const paymentOperations: INodeProperties[] = [
@@ -23,19 +45,19 @@ export const paymentOperations: INodeProperties[] = [
 			{
 				name: 'Get',
 				value: 'get',
-				description: 'Get a payment’s current status and settlement details',
+				description: 'Retrieve a payment with its current status and what arrived',
 				action: 'Get payment',
 			},
 			{
 				name: 'Get Many',
 				value: 'getAll',
-				description: 'Get many payments, newest first',
+				description: 'Retrieve a list of payments, newest first, by status, reference or date',
 				action: 'Get many payments',
 			},
 			{
 				name: 'Simulate',
 				value: 'simulate',
-				description: 'Simulate how a Test payment ends, without moving money',
+				description: 'Choose how a Test payment ends, to try a workflow without moving money',
 				action: 'Simulate payment outcome',
 			},
 		],
@@ -44,20 +66,23 @@ export const paymentOperations: INodeProperties[] = [
 ];
 
 export const paymentFields: INodeProperties[] = [
-	{
-		displayName: 'Payment ID',
+	recordLocator('payment', {
 		name: 'paymentId',
-		type: 'string',
-		required: true,
-		default: '',
-		placeholder: 'e.g. pay_7AAiYH0Ykt11ED4hmfiN',
-		displayOptions: show(['get', 'simulate']),
-	},
+		displayName: 'Payment',
+		description: 'The payment to look up.',
+		displayOptions: show(['get']),
+	}),
+	recordLocator('payment', {
+		name: 'paymentId',
+		displayName: 'Payment',
+		description: 'The Test payment to end. Start its checkout session first.',
+		displayOptions: show(['simulate']),
+	}),
 
 	// ---------- simulate ----------
 	{
 		displayName:
-			'Simulating works only on Test payments (a key starting rb_test_), after the session has started. No money moves.',
+			'Simulate works only with a Test key (rb_test_…) and a payment whose checkout session has started. No money moves, and your Test webhooks and Railbed Trigger receive the same events a real payment sends.',
 		name: 'simulateNotice',
 		type: 'notice',
 		default: '',
@@ -73,18 +98,24 @@ export const paymentFields: INodeProperties[] = [
 			{
 				name: 'Declined',
 				value: 'declined',
-				description: 'The card was declined; the payment stays open for another try',
+				description:
+					'The buyer’s card is declined. The payment stays open so they can try another way to pay, and no event is sent.',
 			},
-			{ name: 'Failed', value: 'failed', description: 'The payment ends in a terminal failure' },
+			{
+				name: 'Failed',
+				value: 'failed',
+				description: 'The payment can’t be completed and ends unpaid. Sends Payment Failed.',
+			},
 			{
 				name: 'Paid',
 				value: 'paid',
-				description: 'The money arrives in full and passes every check',
+				description: 'The money arrives and passes every check. Sends Payment Paid.',
 			},
 			{
 				name: 'Underpaid',
 				value: 'underpaid',
-				description: 'Too little money arrives, so the payment is held for your decision',
+				description:
+					'Half the amount arrives, so the payment needs your decision in the dashboard. Sends Payment Needs Your Decision.',
 			},
 		],
 		displayOptions: show(['simulate']),
@@ -137,18 +168,20 @@ export const paymentFields: INodeProperties[] = [
 				name: 'reference',
 				type: 'string',
 				default: '',
-				description: 'Only payments with exactly this reference (your order ID)',
+				placeholder: 'e.g. order_1042',
+				description:
+					'Only payments with exactly this reference, the order ID you sent when creating the checkout session',
 			},
 			{
 				displayName: 'Status',
 				name: 'status',
 				type: 'options',
 				default: 'paid',
-				options: [...PAYMENT_STATUSES]
-					.sort()
-					.map((value) => ({ name: STATUS_NAMES[value], value })),
+				options: PAYMENT_STATUSES.map((value) => ({ value, ...STATUS_OPTIONS[value] })).sort(
+					(a, b) => a.name.localeCompare(b.name),
+				),
 				description:
-					'Only payments in this status. Only Paid means the money arrived and passed every check.',
+					'Only payments with this status, as the dashboard shows it. Only Paid means the money arrived and passed every check.',
 			},
 		],
 	},

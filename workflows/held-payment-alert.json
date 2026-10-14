@@ -1,9 +1,9 @@
 {
-  "name": "Held payment → alert the owner",
+  "name": "Payment needs your decision → alert the owner",
   "nodes": [
     {
       "id": "5aa403a9-fd7f-4416-bc03-7421b729edac",
-      "name": "When a payment is held",
+      "name": "When a payment needs your decision",
       "type": "@railbed/n8n-nodes-railbed.railbedTrigger",
       "typeVersion": 1,
       "position": [
@@ -71,7 +71,11 @@
       "parameters": {
         "resource": "order",
         "operation": "get",
-        "orderId": "={{ $json.data.order.id }}"
+        "orderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.data.order.id }}"
+        }
       },
       "credentials": {
         "railbedApi": {
@@ -95,7 +99,7 @@
             {
               "id": "e81b2d82-99d3-4f53-9a54-93765442e3ab",
               "name": "alert",
-              "value": "={{ \"Needs your decision: \" + $(\"When a payment is held\").item.json.data.payment.description + \", \" + $(\"When a payment is held\").item.json.data.payment.amount + \" \" + $(\"When a payment is held\").item.json.data.payment.currency + \" from \" + ($(\"When a payment is held\").item.json.data.payment.customerEmail ?? \"a buyer who gave no email\") + \". Review it in Railbed → Payments.\" }}",
+              "value": "={{ \"Needs your decision: \" + $(\"When a payment needs your decision\").item.json.data.payment.description + \", \" + $(\"When a payment needs your decision\").item.json.data.payment.amount + \" \" + $(\"When a payment needs your decision\").item.json.data.payment.currency + \" from \" + ($(\"When a payment needs your decision\").item.json.data.payment.customerEmail ?? \"a buyer who gave no email\") + \". Review it in Railbed → Payments.\" }}",
               "type": "string"
             },
             {
@@ -111,7 +115,7 @@
     }
   ],
   "connections": {
-    "When a payment is held": {
+    "When a payment needs your decision": {
       "main": [
         [
           {

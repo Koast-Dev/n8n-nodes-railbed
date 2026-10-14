@@ -13,19 +13,26 @@ import {
 	jsonObject,
 	metadataFromRows,
 	moneyText,
-	pathId,
 	simplifyCustomer,
 	simplifyOrder,
 	simplifyPayment,
 	simplifySession,
 	toUnixSeconds,
 } from '../shared/inputs';
+import { checkRecordId, type RecordKind } from '../shared/records';
 import { errorItem, railbedApiRequest, railbedApiRequestAllItems } from '../shared/transport';
 import { checkoutSessionFields, checkoutSessionOperations } from './descriptions/checkoutSession';
 import { customerFields, customerOperations } from './descriptions/customer';
 import { orderFields, orderOperations } from './descriptions/order';
 import { paymentFields, paymentOperations } from './descriptions/payment';
 import { webhookEndpointFields, webhookEndpointOperations } from './descriptions/webhookEndpoint';
+import {
+	searchCheckoutSessions,
+	searchCustomers,
+	searchOrders,
+	searchPayments,
+	searchWebhookEndpoints,
+} from './listSearch';
 
 /**
  * Railbed's merchant API (/v1) as n8n operations. Programmatic rather than declarative because lists page with
@@ -74,6 +81,16 @@ export class Railbed implements INodeType {
 		],
 	};
 
+	methods = {
+		listSearch: {
+			searchCheckoutSessions,
+			searchCustomers,
+			searchOrders,
+			searchPayments,
+			searchWebhookEndpoints,
+		},
+	};
+
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
@@ -112,6 +129,27 @@ function money(this: IExecuteFunctions, value: unknown, label: string, i: number
 		});
 	}
 	return amount.text;
+}
+
+/**
+ * A record field's ID, ready for a URL path. The field is a resource locator: n8n's extractValue takes the ID out of a
+ * pasted link (By URL), and From List and By ID hold it as it is. An empty field or a value that isn't this kind of ID
+ * stops here with a message naming the field, before Railbed is asked.
+ */
+function recordId(
+	this: IExecuteFunctions,
+	name: string,
+	kind: RecordKind,
+	field: string,
+	i: number,
+	value: unknown = this.getNodeParameter(name, i, '', { extractValue: true }),
+): string {
+	const checked = checkRecordId(value, kind, field);
+	if ('id' in checked) return checked.id;
+	throw new NodeOperationError(this.getNode(), checked.message, {
+		itemIndex: i,
+		description: checked.description,
+	});
 }
 
 /** Runs one resource and operation for item `i`; every result becomes an output item. */
@@ -184,7 +222,7 @@ async function runOperation(
 			});
 			return simplified(simplifySession, [session]);
 		}
-		const sessionId = pathId(this.getNodeParameter('sessionId', i));
+		const sessionId = recordId.call(this, 'sessionId', 'session', 'Checkout Session', i);
 		if (operation === 'get') {
 			return simplified(simplifySession, [
 				await railbedApiRequest.call(this, 'GET', `/checkout_sessions/${sessionId}`, {
@@ -219,7 +257,7 @@ async function runOperation(
 			});
 			return simplified(simplifyPayment, payments);
 		}
-		const paymentId = pathId(this.getNodeParameter('paymentId', i));
+		const paymentId = recordId.call(this, 'paymentId', 'payment', 'Payment', i);
 		if (operation === 'get') {
 			return simplified(simplifyPayment, [
 				await railbedApiRequest.call(this, 'GET', `/payments/${paymentId}`, { itemIndex: i }),
@@ -239,14 +277,19 @@ async function runOperation(
 	if (resource === 'order') {
 		if (operation === 'getAll') {
 			const filters = this.getNodeParameter('filters', i, {}) as IDataObject;
+			const customer = this.getNodeParameter('filters.customerId', i, '', { extractValue: true });
 			const orders = await many('/orders', {
-				customer_id: filters.customerId as string,
+				// A Customer filter added but left empty lists every order, as before it was added.
+				customer_id:
+					customer === '' || customer === null || customer === undefined
+						? undefined
+						: recordId.call(this, 'filters.customerId', 'customer', 'Customer', i, customer),
 				store_id: filters.storeId as string,
 				store_order_id: filters.storeOrderId as string,
 			});
 			return simplified(simplifyOrder, orders);
 		}
-		const orderId = pathId(this.getNodeParameter('orderId', i));
+		const orderId = recordId.call(this, 'orderId', 'order', 'Order', i);
 		if (operation === 'get') {
 			return simplified(simplifyOrder, [
 				await railbedApiRequest.call(this, 'GET', `/orders/${orderId}`, { itemIndex: i }),
@@ -290,7 +333,7 @@ async function runOperation(
 			);
 		}
 		if (operation === 'get') {
-			const customerId = pathId(this.getNodeParameter('customerId', i));
+			const customerId = recordId.call(this, 'customerId', 'customer', 'Customer', i);
 			return simplified(simplifyCustomer, [
 				await railbedApiRequest.call(this, 'GET', `/customers/${customerId}`, { itemIndex: i }),
 			]);
@@ -310,7 +353,7 @@ async function runOperation(
 				await railbedApiRequest.call(this, 'POST', '/webhook_endpoints', { body, itemIndex: i }),
 			];
 		}
-		const endpointId = pathId(this.getNodeParameter('endpointId', i));
+		const endpointId = recordId.call(this, 'endpointId', 'endpoint', 'Webhook Endpoint', i);
 		if (operation === 'get')
 			return [
 				await railbedApiRequest.call(this, 'GET', `/webhook_endpoints/${endpointId}`, {

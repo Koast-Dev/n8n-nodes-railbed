@@ -149,7 +149,13 @@ test('with On Error set to continue, a refusal becomes an item carrying Railbed�
 	assert.deepEqual(item.pairedItem, { item: 0 });
 
 	const [[blank]] = await run(fakeRailbed(), { resource: 'order', operation: 'get', orderId: '..' }, { continueOnFail: true });
-	assert.deepEqual(blank.json, { error: '“..” isn’t a Railbed ID', code: null, httpCode: null, description: null });
+	assert.deepEqual(blank.json, {
+		error: '“..” isn’t an order ID',
+		code: null,
+		httpCode: null,
+		description:
+			'Order IDs start with ord_, such as ord_M4tQx8ZkP1vRn6WcLs2B. To find an order by your store’s order ID, use Order → Get Many with the Store Order ID filter.',
+	});
 
 	// Without it, the same refusal stops the workflow with Railbed's message.
 	const strict = fakeRailbed();

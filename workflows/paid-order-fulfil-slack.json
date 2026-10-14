@@ -84,7 +84,11 @@
       "parameters": {
         "resource": "order",
         "operation": "update",
-        "orderId": "={{ $json.data.order.id }}",
+        "orderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.data.order.id }}"
+        },
         "fulfillment": "fulfilled"
       },
       "credentials": {

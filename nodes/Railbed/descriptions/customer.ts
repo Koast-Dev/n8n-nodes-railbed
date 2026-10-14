@@ -1,4 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
+import { recordLocator } from './locators';
 
 const show = (operation: string[]) => ({ show: { resource: ['customer'], operation } });
 
@@ -13,13 +14,13 @@ export const customerOperations: INodeProperties[] = [
 			{
 				name: 'Get',
 				value: 'get',
-				description: 'Get a customer’s contact details, addresses and totals',
+				description: 'Retrieve a customer with their contact details, addresses and totals',
 				action: 'Get customer',
 			},
 			{
 				name: 'Get Many',
 				value: 'getAll',
-				description: 'Get many customers, newest first, or find one by email',
+				description: 'Retrieve a list of customers, newest first, or find one by email',
 				action: 'Get many customers',
 			},
 		],
@@ -28,15 +29,13 @@ export const customerOperations: INodeProperties[] = [
 ];
 
 export const customerFields: INodeProperties[] = [
-	{
-		displayName: 'Customer ID',
+	recordLocator('customer', {
 		name: 'customerId',
-		type: 'string',
-		required: true,
-		default: '',
-		placeholder: 'e.g. cus_Hc7nQ2wVz9KpT4mRb1Ye',
+		displayName: 'Customer',
+		description:
+			'The customer. In a workflow, map it from an order’s customer_id or a Railbed Trigger event’s data.customer.id.',
 		displayOptions: show(['get']),
-	},
+	}),
 	{
 		displayName: 'Return All',
 		name: 'returnAll',
@@ -68,7 +67,7 @@ export const customerFields: INodeProperties[] = [
 				type: 'string',
 				default: '',
 				placeholder: 'e.g. nathan@example.com',
-				description: 'Only the customer with this email, in any letter case',
+				description: 'Only the customer with exactly this email, in any letter case',
 			},
 		],
 	},

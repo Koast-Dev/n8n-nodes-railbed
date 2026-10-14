@@ -90,7 +90,7 @@ export class RailbedTrigger implements INodeType {
 		version: 1,
 		subtitle: '={{$parameter["events"].join(", ")}}',
 		description:
-			'Starts the workflow when a Railbed payment starts, is paid, is held, expires or changes',
+			'Starts the workflow when a Railbed payment starts, is paid, needs your decision, expires or changes',
 		defaults: { name: 'Railbed Trigger' },
 		inputs: [],
 		outputs: [NodeConnectionTypes.Main],
@@ -112,8 +112,7 @@ export class RailbedTrigger implements INodeType {
 				type: 'multiOptions',
 				required: true,
 				default: ['payment.paid'],
-				description:
-					'The events that start this workflow. Payment Paid is the one to fulfil orders from.',
+				description: 'The events that start this workflow. Fulfil orders from Payment Paid only.',
 				options: [...EVENT_TYPES].sort((a, b) => a.name.localeCompare(b.name)),
 			},
 			{
