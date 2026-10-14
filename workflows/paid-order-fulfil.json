@@ -1,0 +1,171 @@
+{
+  "name": "Paid order → fulfil it",
+  "nodes": [
+    {
+      "id": "c874f119-4585-4e69-819d-2efb6aacc1b4",
+      "name": "When a payment is paid",
+      "type": "@railbed/n8n-nodes-railbed.railbedTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "events": [
+          "payment.paid"
+        ],
+        "options": {}
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    },
+    {
+      "id": "cd9b3bf3-3f87-5821-ac21-a2601a8e761d",
+      "name": "Real payment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "550172c4-bd52-5811-8cc0-b6dfd5de1ecd",
+              "leftValue": "={{ $json.sample }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "notes": "Railbed's Send test event sends a made-up payment (sample is true) that isn't in your account. Only real payments go on."
+    },
+    {
+      "id": "e4bb47a5-5a3c-4dad-a213-2f90633dceac",
+      "name": "Skip repeated events",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.id }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "830b6422-a3a7-4a68-bcbe-7bcd2c4b9807",
+      "name": "Mark order fulfilled",
+      "type": "@railbed/n8n-nodes-railbed.railbed",
+      "typeVersion": 1,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "resource": "order",
+        "operation": "update",
+        "orderId": "={{ $json.data.order.id }}",
+        "fulfillment": "fulfilled"
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    },
+    {
+      "id": "8ccbeba5-a916-4e3a-9fda-d2a04f84b3a5",
+      "name": "Note for the team",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "51979c48-7dfa-4582-b172-c2b64da4269b",
+              "name": "message",
+              "value": "={{ \"Paid: \" + $(\"When a payment is paid\").item.json.data.payment.description + \" for \" + $(\"When a payment is paid\").item.json.data.payment.amount + \" \" + $(\"When a payment is paid\").item.json.data.payment.currency + \" (\" + $(\"When a payment is paid\").item.json.data.payment.customerEmail + \"). Order \" + $json.number + \" marked fulfilled.\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "When a payment is paid": {
+      "main": [
+        [
+          {
+            "node": "Real payment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Real payment?": {
+      "main": [
+        [
+          {
+            "node": "Skip repeated events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Skip repeated events": {
+      "main": [
+        [
+          {
+            "node": "Mark order fulfilled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark order fulfilled": {
+      "main": [
+        [
+          {
+            "node": "Note for the team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

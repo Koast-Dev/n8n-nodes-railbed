@@ -1,0 +1,18 @@
+{
+	"node": "@railbed/n8n-nodes-railbed.railbed",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Finance & Accounting", "Sales"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://railbed.com/docs/guides/n8n/#connect-your-railbed-account"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://railbed.com/docs/guides/n8n/"
+			}
+		]
+	}
+}

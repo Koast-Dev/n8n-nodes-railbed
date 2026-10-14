@@ -1,0 +1,66 @@
+{
+	"name": "@railbed/n8n-nodes-railbed",
+	"version": "0.1.0",
+	"description": "Railbed for n8n: create checkout sessions, look up payments, orders and customers, and start workflows from signed Railbed webhooks.",
+	"license": "MIT",
+	"homepage": "https://railbed.com/docs/guides/n8n/",
+	"keywords": [
+		"n8n-community-node-package",
+		"n8n",
+		"railbed",
+		"payments",
+		"checkout",
+		"webhooks"
+	],
+	"author": {
+		"name": "Railbed by MediaGlobe",
+		"email": "support@railbed.com",
+		"url": "https://railbed.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Koast-Dev/n8n-nodes-railbed.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Koast-Dev/n8n-nodes-railbed/issues",
+		"email": "support@railbed.com"
+	},
+	"scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"test": "n8n-node build && node --test test/*.test.mjs",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease"
+	},
+	"files": [
+		"dist",
+		"!dist/tsconfig.tsbuildinfo"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": true,
+		"credentials": [
+			"dist/credentials/RailbedApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/Railbed/Railbed.node.js",
+			"dist/nodes/RailbedTrigger/RailbedTrigger.node.js"
+		]
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "0.51.5",
+		"eslint": "9.32.0",
+		"prettier": "3.6.2",
+		"release-it": "^21.1.0",
+		"typescript": "5.9.2"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
+}

@@ -1,0 +1,89 @@
+{
+  "name": "Daily summary of paid payments",
+  "nodes": [
+    {
+      "id": "bc98aaee-b66b-4273-9395-7e727bd55501",
+      "name": "Every morning at 8",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e2653724-442c-4f2e-8a19-54d36872b4b0",
+      "name": "Paid payments from the last week",
+      "type": "@railbed/n8n-nodes-railbed.railbed",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "payment",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {
+          "status": "paid",
+          "createdAfter": "={{ $today.minus({ days: 7 }).toISO() }}"
+        }
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "f7fb52bf-0ce1-42cf-bb97-a6fd8a7f38db",
+      "name": "Paid yesterday, per currency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Payments paid yesterday in this workflow's time zone (workflow Settings → Timezone), totalled per currency.\n// Railbed sends amounts as decimal text such as \"49.00\", so they're added up in cents, and different currencies are\n// never added together. The list holds paid payments created in the last week, because a payment can be paid after\n// the day it was created; paid_at decides which day it counts for.\nconst from = $today.minus({ days: 1 }).toSeconds();\nconst to = $today.toSeconds();\nconst cents = {};\nlet count = 0;\nfor (const { json: payment } of $input.all()) {\n  if (payment.status !== 'paid' || typeof payment.paid_at !== 'number') continue;\n  if (payment.paid_at < from || payment.paid_at >= to) continue;\n  const [whole, fraction = ''] = String(payment.amount).split('.');\n  const value = Number(whole) * 100 + Number(fraction.padEnd(2, '0').slice(0, 2));\n  cents[payment.currency] = (cents[payment.currency] ?? 0) + value;\n  count++;\n}\nconst totals = Object.entries(cents)\n  .sort(([, a], [, b]) => b - a)\n  .map(([currency, value]) => ({ currency, amount: `${Math.floor(value / 100)}.${String(value % 100).padStart(2, '0')}` }));\nconst day = $today.minus({ days: 1 }).toFormat('d LLL yyyy');\nconst summary = count\n  ? `${count} paid ${count === 1 ? 'payment' : 'payments'} on ${day}: ${totals.map((t) => `${t.amount} ${t.currency}`).join(', ')}.`\n  : `No payments were paid on ${day}.`;\nreturn [{ json: { day, count, totals, summary } }];\n"
+      }
+    }
+  ],
+  "connections": {
+    "Every morning at 8": {
+      "main": [
+        [
+          {
+            "node": "Paid payments from the last week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Paid payments from the last week": {
+      "main": [
+        [
+          {
+            "node": "Paid yesterday, per currency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "name": "New deal → send a checkout link",
+  "nodes": [
+    {
+      "id": "a47cd5bb-023f-4815-861b-0e99c28df6dc",
+      "name": "When a deal is won",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deal-won",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Deal webhook secret"
+        }
+      },
+      "notes": "Only callers that send the header in the \"Deal webhook secret\" credential get through, so nobody else can create checkout links in your name."
+    },
+    {
+      "id": "30bbf0db-1ba8-5098-b8ec-ebadc170d571",
+      "name": "Has the deal's details?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "23759855-ea69-534d-b023-9368b2c9414c",
+              "leftValue": "={{ String($json.body.deal_id ?? '').trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "3539cd15-44ea-572f-8dd8-f4ce7aa96f6b",
+              "leftValue": "={{ String($json.body.email ?? '').trim() }}",
+              "rightValue": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            },
+            {
+              "id": "ed2e8b5c-992c-50a2-9308-4b9b318214b4",
+              "leftValue": "={{ String($json.body.amount ?? '').trim() }}",
+              "rightValue": "^\\d{1,6}(\\.\\d{1,2})?$",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            },
+            {
+              "id": "40742535-a679-5a25-bbc6-bbfd387addea",
+              "leftValue": "={{ String($json.body.product ?? '').trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a09b75f2-05a6-45d7-8e11-bc7ae6f8406f",
+      "name": "Create checkout session",
+      "type": "@railbed/n8n-nodes-railbed.railbed",
+      "typeVersion": 1,
+      "position": [
+        480,
+        -100
+      ],
+      "parameters": {
+        "resource": "checkoutSession",
+        "operation": "create",
+        "amount": "={{ String($json.body.amount).trim() }}",
+        "currency": "USD",
+        "description": "={{ String($json.body.product).trim() }}",
+        "additionalFields": {
+          "customerEmail": "={{ String($json.body.email).trim() }}",
+          "reference": "={{ String($json.body.deal_id).trim() }}",
+          "idempotencyKey": "={{ \"deal-won-\" + String($json.body.deal_id).trim() }}"
+        }
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    },
+    {
+      "id": "dc632af0-4b80-4d3b-852e-4ca2b7991ab4",
+      "name": "Reply with the link",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { checkout_url: $json.url, session: $json.id, amount: $json.amount, currency: $json.currency } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "0e29d46b-2486-5b5c-924e-3716f9bf5bfa",
+      "name": "Reply that details are missing",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { error: \"Send deal_id, email, amount (such as 49.00) and product.\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When a deal is won": {
+      "main": [
+        [
+          {
+            "node": "Has the deal's details?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has the deal's details?": {
+      "main": [
+        [
+          {
+            "node": "Create checkout session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply that details are missing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create checkout session": {
+      "main": [
+        [
+          {
+            "node": "Reply with the link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "name": "Held payment → alert the owner",
+  "nodes": [
+    {
+      "id": "5aa403a9-fd7f-4416-bc03-7421b729edac",
+      "name": "When a payment is held",
+      "type": "@railbed/n8n-nodes-railbed.railbedTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "events": [
+          "payment.held"
+        ],
+        "options": {
+          "includeCurrentPayment": true
+        }
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    },
+    {
+      "id": "eb6748d9-8119-5bdc-8508-affa1bae53a3",
+      "name": "Real payment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a9306cb1-2fe4-564b-b772-05deb835cc1f",
+              "leftValue": "={{ $json.sample }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "notes": "Railbed's Send test event sends a made-up payment (sample is true) that isn't in your account. Only real payments go on."
+    },
+    {
+      "id": "3913bdc5-9c43-4153-88ec-9c3e20158029",
+      "name": "Look up the order",
+      "type": "@railbed/n8n-nodes-railbed.railbed",
+      "typeVersion": 1,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "resource": "order",
+        "operation": "get",
+        "orderId": "={{ $json.data.order.id }}"
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    },
+    {
+      "id": "c9ed88f8-00e5-47f4-8c6b-2efd8d7a8e9c",
+      "name": "Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e81b2d82-99d3-4f53-9a54-93765442e3ab",
+              "name": "alert",
+              "value": "={{ \"Needs your decision: \" + $(\"When a payment is held\").item.json.data.payment.description + \", \" + $(\"When a payment is held\").item.json.data.payment.amount + \" \" + $(\"When a payment is held\").item.json.data.payment.currency + \" from \" + ($(\"When a payment is held\").item.json.data.payment.customerEmail ?? \"a buyer who gave no email\") + \". Review it in Railbed → Payments.\" }}",
+              "type": "string"
+            },
+            {
+              "id": "7d1d4909-2936-4aa4-b438-0c78c0ef738e",
+              "name": "order_status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "When a payment is held": {
+      "main": [
+        [
+          {
+            "node": "Real payment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Real payment?": {
+      "main": [
+        [
+          {
+            "node": "Look up the order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Look up the order": {
+      "main": [
+        [
+          {
+            "node": "Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

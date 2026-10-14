@@ -1,0 +1,193 @@
+{
+  "name": "Ask Railbed (AI agent)",
+  "nodes": [
+    {
+      "id": "613ebd28-2e25-4ca7-b28a-d19ac872d608",
+      "name": "When a chat message arrives",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "options": {}
+      }
+    },
+    {
+      "id": "c3f26554-11b6-4c92-bf3b-960161c9a0de",
+      "name": "Railbed assistant",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "options": {
+          "systemMessage": "You answer questions about this business's Railbed payments, orders and customers. Look things up with the tools; never guess. Every amount is decimal text in the currency beside it: give the currency with each amount and never add different currencies together. A payment is paid only when its status is paid; held means it waits for the owner's decision in Railbed."
+        }
+      }
+    },
+    {
+      "id": "77a32995-f199-4a46-a71e-d6c9d875d3d2",
+      "name": "OpenAI chat model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        80,
+        240
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "id": "8e11bf91-7513-4ed1-b803-1f34879d6b6e",
+      "name": "Payments",
+      "type": "@railbed/n8n-nodes-railbed.railbedTool",
+      "typeVersion": 1,
+      "position": [
+        300,
+        240
+      ],
+      "parameters": {
+        "resource": "payment",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 25,
+        "filters": {
+          "status": "={{ $fromAI('status', 'Only payments in this status: open, pending, paid, held, failed or expired. Empty for every status.', 'string', '') }}",
+          "reference": "={{ $fromAI('reference', 'Only payments with exactly this reference, the store order ID the business sent. Empty for any.', 'string', '') }}",
+          "createdAfter": "={{ $fromAI('created_after', 'Only payments created at or after this time, as ISO 8601 such as 2026-10-01T00:00:00Z. Empty for no limit.', 'string', '') }}",
+          "createdBefore": "={{ $fromAI('created_before', 'Only payments created at or before this time, as ISO 8601. Empty for no limit.', 'string', '') }}"
+        }
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    },
+    {
+      "id": "ce130e83-44dc-4464-866d-2296e592ee09",
+      "name": "Orders",
+      "type": "@railbed/n8n-nodes-railbed.railbedTool",
+      "typeVersion": 1,
+      "position": [
+        440,
+        240
+      ],
+      "parameters": {
+        "resource": "order",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 25,
+        "filters": {
+          "customerId": "={{ $fromAI('customer_id', 'Only orders of this customer (an ID starting cus_, from the Customers tool). Empty for any.', 'string', '') }}",
+          "storeId": "={{ $fromAI('store_id', 'Only orders sent with this store ID. Usually empty.', 'string', '') }}",
+          "storeOrderId": "={{ $fromAI('store_order_id', 'The store’s own order number or ID, such as 1042. Empty to list recent orders.', 'string', '') }}"
+        }
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    },
+    {
+      "id": "5283794f-296b-44c5-9d67-0bcd98695a91",
+      "name": "Customers",
+      "type": "@railbed/n8n-nodes-railbed.railbedTool",
+      "typeVersion": 1,
+      "position": [
+        580,
+        240
+      ],
+      "parameters": {
+        "resource": "customer",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 25,
+        "filters": {
+          "email": "={{ $fromAI('email', 'The customer’s email address. Empty to list recent customers.', 'string', '') }}"
+        }
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When a chat message arrives": {
+      "main": [
+        [
+          {
+            "node": "Railbed assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI chat model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Railbed assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Payments": {
+      "ai_tool": [
+        [
+          {
+            "node": "Railbed assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orders": {
+      "ai_tool": [
+        [
+          {
+            "node": "Railbed assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customers": {
+      "ai_tool": [
+        [
+          {
+            "node": "Railbed assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

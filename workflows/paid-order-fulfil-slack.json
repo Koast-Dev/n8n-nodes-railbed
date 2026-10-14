@@ -1,0 +1,172 @@
+{
+  "name": "Paid order → fulfil it and tell Slack",
+  "nodes": [
+    {
+      "id": "7fee1f3a-4783-464d-bf7c-58ab0a1aeafc",
+      "name": "When a payment is paid",
+      "type": "@railbed/n8n-nodes-railbed.railbedTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "events": [
+          "payment.paid"
+        ],
+        "options": {}
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    },
+    {
+      "id": "08b1c703-9b67-55ca-bb07-3e8a6045b2e5",
+      "name": "Real payment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "497b550f-a3c0-5895-b716-abececfc08f4",
+              "leftValue": "={{ $json.sample }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "notes": "Railbed's Send test event sends a made-up payment (sample is true) that isn't in your account. Only real payments go on."
+    },
+    {
+      "id": "7a0d08af-841d-4248-9b13-25690384f788",
+      "name": "Skip repeated events",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "dedupeValue": "={{ $json.id }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "65e7708e-134a-4501-8d86-a7e2126d4fdb",
+      "name": "Mark order fulfilled",
+      "type": "@railbed/n8n-nodes-railbed.railbed",
+      "typeVersion": 1,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "resource": "order",
+        "operation": "update",
+        "orderId": "={{ $json.data.order.id }}",
+        "fulfillment": "fulfilled"
+      },
+      "credentials": {
+        "railbedApi": {
+          "name": "Railbed"
+        }
+      }
+    },
+    {
+      "id": "bb191e31-22d4-4945-a25a-eeecc701ed20",
+      "name": "Post in #sales",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#sales",
+          "mode": "name"
+        },
+        "text": "={{ \":moneybag: Paid: \" + $(\"When a payment is paid\").item.json.data.payment.description + \" for \" + $(\"When a payment is paid\").item.json.data.payment.amount + \" \" + $(\"When a payment is paid\").item.json.data.payment.currency + \" (\" + $(\"When a payment is paid\").item.json.data.payment.customerEmail + \"). Order \" + $json.number + \" is fulfilled.\" }}",
+        "otherOptions": {}
+      },
+      "credentials": {
+        "slackApi": {
+          "name": "Slack"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When a payment is paid": {
+      "main": [
+        [
+          {
+            "node": "Real payment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Real payment?": {
+      "main": [
+        [
+          {
+            "node": "Skip repeated events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Skip repeated events": {
+      "main": [
+        [
+          {
+            "node": "Mark order fulfilled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark order fulfilled": {
+      "main": [
+        [
+          {
+            "node": "Post in #sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

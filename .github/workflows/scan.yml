@@ -1,0 +1,20 @@
+# Runs n8n's own verification scanner against the published package, the check n8n runs before verifying a node.
+# Start it by hand (Actions → Scan → Run workflow) after a release. It reads the package from npm and its source from
+# this public repository, so it only works once a version is published with provenance.
+name: Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      # Pinned, so a new scanner release can't change what runs here unreviewed. Bump it deliberately (n8n publishes a
+      # new version most weeks; `npm view @n8n/scan-community-package version`) before submitting for verification.
+      - name: Scan the published package
+        run: npx --yes @n8n/scan-community-package@0.38.0 @railbed/n8n-nodes-railbed

@@ -1,0 +1,70 @@
+# Publishes @railbed/n8n-nodes-railbed to npm, with a provenance statement, on every version tag.
+#
+# n8n verifies community nodes only when they are published from a public GitHub repository by GitHub Actions with
+# npm provenance (required since May 1, 2026). This workflow does that. It is inert inside the Railbed monorepo and
+# runs in the public package repository; see docs/n8n.md in the Railbed repository for the release steps.
+#
+# One-time setup (the owner):
+#   Recommended: npm Trusted Publishing. On npmjs.com, open the package's Settings → Trusted Publisher → GitHub Actions
+#   and enter the repository owner and name and the workflow file name `publish.yml`. No secret is stored. npm only lets
+#   you add a trusted publisher to a package that exists, so the very first release may need option B once.
+#   Fallback: a granular npm access token scoped to this package with read and write access, saved in the repository's
+#   Actions secrets as NPM_TOKEN.
+#
+# Releasing: run `npm run release` on main. It lints, builds, bumps the version, updates the changelog, commits, tags
+# and pushes; the tag starts this workflow, which lints, builds and publishes.
+
+name: Publish
+
+on:
+  push:
+    tags:
+      # 0.1.0, 1.2.3, 2.0.0-rc.1 and so on.
+      - '*.*.*'
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+
+    permissions:
+      # Mints the OIDC token for trusted publishing and the provenance statement.
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org'
+          # No dependency cache in a release build (npm's trusted publishing guidance): a poisoned cache would ship.
+
+      # Trusted publishing needs npm 11.5.1 or later; the Node LTS image may ship an older npm.
+      - name: Update npm
+        run: npm install -g npm@11
+
+      # The tag names the version being published; a tag that doesn't match package.json would publish something else.
+      - name: Check the tag matches package.json
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match package.json version $version. Tag the commit that bumped the version."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Release
+        # `npm run release` in CI lints, builds and runs `npm publish` with provenance. The scoped package is public
+        # through publishConfig.access in package.json. setup-node's .npmrc reads NODE_AUTH_TOKEN: with trusted
+        # publishing npm uses the OIDC token first, and the NPM_TOKEN secret (when set) is the fallback.
+        run: npm run release
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
